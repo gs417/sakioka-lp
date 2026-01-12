@@ -433,9 +433,11 @@ ${categoryLabel}
             {/* 所属弁護士 */}
             <div className="bg-slate-50 rounded-2xl p-6">
               <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
-                <div className="w-32 h-40 bg-slate-200 rounded-xl shadow-lg flex items-center justify-center">
-                  <Scale size={40} className="text-slate-400" />
-                </div>
+                <img
+                  src="/sadakane-photo.jpg"
+                  alt="貞兼紀夫弁護士"
+                  className="w-32 h-40 object-cover rounded-xl shadow-lg"
+                />
                 <div className="text-center sm:text-left">
                   <p className="text-xs text-slate-500 mb-1">所属弁護士</p>
                   <p className="font-bold text-xl mb-3">弁護士 貞兼 紀夫</p>
