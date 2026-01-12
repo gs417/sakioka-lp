@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+/* Bottom Sheet Animation */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* iPhone safe area */
+.safe-area-bottom {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+/* スマホでスクロール時のバウンス無効化 */
+html, body {
+  overscroll-behavior: none;
+}
+
+/* チャット入力時のキーボード対応 */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+}
