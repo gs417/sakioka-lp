@@ -1,16 +1,22 @@
 import { useState, useRef, useEffect } from 'react';
 import { Phone, Mail, Clock, MapPin, ChevronDown, ChevronRight, Send, X, Scale, ArrowUpRight, Train, MessageCircle, FileText, Heart, Car, Home, CreditCard, Building, HelpCircle, CheckCircle2, Circle } from 'lucide-react';
 
+// TODO: FormspreeのURLを設定してください
+const FORMSPREE_URL = 'https://formspree.io/f/YOUR_FORM_ID';
+
 export default function App() {
   const [showChat, setShowChat] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showBooking, setShowBooking] = useState(false);
+  const [showContact, setShowContact] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [summary, setSummary] = useState('');
-  const [bookingData, setBookingData] = useState({ name: '', tel: '', category: '', message: '' });
+  const [bookingData, setBookingData] = useState({ name: '', tel: '', email: '', category: '', message: '' });
+  const [contactData, setContactData] = useState({ name: '', email: '', tel: '', message: '' });
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [formStatus, setFormStatus] = useState('idle'); // idle, submitting, success, error
   const messagesEndRef = useRef(null);
   const chatRef = useRef(null);
 
@@ -27,6 +33,56 @@ export default function App() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // フォーム送信（お問い合わせ）
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    setFormStatus('submitting');
+    try {
+      const response = await fetch(FORMSPREE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'お問い合わせ',
+          ...contactData
+        })
+      });
+      if (response.ok) {
+        setFormStatus('success');
+        setContactData({ name: '', email: '', tel: '', message: '' });
+      } else {
+        setFormStatus('error');
+      }
+    } catch {
+      setFormStatus('error');
+    }
+  };
+
+  // フォーム送信（AI相談予約）
+  const handleBookingSubmit = async (e) => {
+    e.preventDefault();
+    setFormStatus('submitting');
+    try {
+      const categoryLabel = categories.find(c => c.id === selectedCategory)?.label || '';
+      const response = await fetch(FORMSPREE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'AI相談からの予約',
+          category: categoryLabel,
+          ...bookingData,
+          chatSummary: summary
+        })
+      });
+      if (response.ok) {
+        setFormStatus('success');
+      } else {
+        setFormStatus('error');
+      }
+    } catch {
+      setFormStatus('error');
+    }
+  };
 
   const startChat = (category) => {
     setSelectedCategory(category);
@@ -55,22 +111,24 @@ export default function App() {
 ${categoryLabel}
 
 【対応の流れ】
-1. まず共感を示し、状況を聞く
-2. 必要に応じて1-2個の補足質問
-3. 「直接お話しすれば、より具体的にお伝えできます」と伝える
-4. 自然な流れで予約・お問い合わせを提案
+1. まず共感を示し、現在の状況を聞く
+2. 以下のヒアリング項目を1-2個ずつ自然に質問
+3. 3-4往復したら「詳しい状況が分かりました。直接お話しすれば、より具体的な方針をお伝えできます」と伝える
+4. 相談予約を提案
 
-【ヒアリング項目（さりげなく）】
-- いつ頃からの問題か
-- 相手との関係性
-- 希望する解決の方向性
+【必ず聞き出す項目】
+1. いつ頃から問題が発生しているか（時期）
+2. 相手との関係性（配偶者、親族、会社、他人など）
+3. 現在困っている具体的な状況
+4. どのような解決を希望しているか
 
 【ルール】
 - 1回の返答は100〜150文字程度
+- 1回に聞く質問は1-2個まで
 - 法的断定・具体的アドバイスはしない
 - 「一般的には〜」「ケースによりますが〜」等でぼかす
 - 相談者の不安に寄り添う一言を入れる
-- 3-4往復で予約提案、ただし自然な流れで`;
+- 情報が揃ったら予約を促す`;
 
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -91,14 +149,32 @@ ${categoryLabel}
   };
 
   const generateSummary = async (history) => {
-    const systemPrompt = `以下の相談内容を、弁護士に伝えるために簡潔にまとめてください。
+    const categoryLabel = categories.find(c => c.id === selectedCategory)?.label || '';
 
-【フォーマット】
-■ 相談カテゴリ：〇〇
-■ 状況：（2-3文で）
-■ 相談者の希望：（あれば）
+    const systemPrompt = `以下の法律相談の会話内容から、弁護士への相談に必要な情報を抽出してテンプレート形式でまとめてください。
 
-箇条書きで100文字以内にまとめてください。`;
+【出力フォーマット（必ずこの形式で）】
+■ 相談分野：${categoryLabel}
+
+■ 問題の発生時期：
+（会話から分かれば記載、不明なら「未確認」）
+
+■ 相手との関係：
+（会話から分かれば記載、不明なら「未確認」）
+
+■ 現在の状況：
+（2-3文で簡潔に）
+
+■ 希望する解決：
+（会話から分かれば記載、不明なら「未確認」）
+
+■ その他特記事項：
+（あれば記載、なければ「特になし」）
+
+【ルール】
+- 会話から読み取れる情報のみ記載
+- 推測や補足は入れない
+- 簡潔に、箇条書きで`;
 
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -106,9 +182,9 @@ ${categoryLabel}
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 300,
+          max_tokens: 500,
           system: systemPrompt,
-          messages: [{ role: 'user', content: history.map(m => `${m.role}: ${m.content}`).join('\n') }]
+          messages: [{ role: 'user', content: history.map(m => `${m.role === 'user' ? '相談者' : '弁護士AI'}: ${m.content}`).join('\n') }]
         })
       });
       const data = await response.json();
@@ -149,9 +225,9 @@ ${categoryLabel}
       <header className="fixed top-0 w-full bg-white/90 backdrop-blur-lg border-b border-slate-100 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="text-sm font-bold text-slate-900">崎岡法律事務所</div>
-          <a href="mailto:info@sakioka.jp" className="text-xs font-medium text-red-600">
+          <button onClick={() => { setShowContact(true); setFormStatus('idle'); }} className="text-xs font-medium text-red-600">
             お問い合わせ
-          </a>
+          </button>
         </div>
       </header>
 
@@ -279,16 +355,20 @@ ${categoryLabel}
 
           {/* Summary Card */}
           {showSummary && (
-            <div className="p-4 bg-amber-50 border-t border-amber-200 shrink-0">
-              <p className="text-xs font-medium text-amber-800 mb-2">相談内容をまとめました</p>
-              <div className="bg-white rounded-lg p-3 text-xs text-slate-600 mb-3 whitespace-pre-wrap">
+            <div className="p-4 bg-emerald-50 border-t border-emerald-200 shrink-0">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 size={16} className="text-emerald-600" />
+                <p className="text-sm font-bold text-emerald-800">ヒアリング完了</p>
+              </div>
+              <p className="text-xs text-emerald-700 mb-3">以下の内容で弁護士に相談予約できます</p>
+              <div className="bg-white rounded-xl p-4 text-xs text-slate-700 mb-3 whitespace-pre-wrap border border-emerald-200 max-h-40 overflow-y-auto">
                 {summary}
               </div>
               <button
-                onClick={() => setShowBooking(true)}
+                onClick={() => { setShowBooking(true); setFormStatus('idle'); }}
                 className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold text-sm hover:shadow-lg transition-all flex items-center justify-center gap-2"
               >
-                この内容で予約する
+                この内容で相談予約する
                 <ArrowUpRight size={16} />
               </button>
             </div>
@@ -613,12 +693,12 @@ ${categoryLabel}
           <a href="tel:06-6346-2881" className="flex-1 flex items-center justify-center gap-1.5 bg-slate-100 text-slate-800 py-3 rounded-xl font-bold text-sm">
             <Phone size={16} />電話する
           </a>
-          <a
-            href="mailto:info@sakioka.jp"
+          <button
+            onClick={() => { setShowContact(true); setFormStatus('idle'); }}
             className="flex-1 flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold text-sm"
           >
             <Mail size={16} />お問い合わせ
-          </a>
+          </button>
         </div>
       </div>
 
@@ -626,41 +706,149 @@ ${categoryLabel}
       {showBooking && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setShowBooking(false)} className="absolute top-4 right-4 text-slate-300 hover:text-slate-600">
+            <button onClick={() => { setShowBooking(false); setFormStatus('idle'); }} className="absolute top-4 right-4 text-slate-300 hover:text-slate-600">
               <X size={24} />
             </button>
-            <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center mb-4">
-              <Mail size={22} className="text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-1">予約を確定する</h3>
-            <p className="text-slate-500 mb-4 text-sm">連絡先を入力してください</p>
 
-            {summary && (
-              <div className="bg-slate-50 rounded-lg p-3 mb-4 text-xs text-slate-600">
-                <p className="font-medium text-slate-700 mb-1">相談内容</p>
-                <p className="whitespace-pre-wrap">{summary}</p>
+            {formStatus === 'success' ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 size={32} className="text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">送信完了</h3>
+                <p className="text-slate-500 text-sm mb-6">ご予約を受け付けました。<br />担当者より折り返しご連絡いたします。</p>
+                <button onClick={() => { setShowBooking(false); setShowChat(false); setFormStatus('idle'); }} className="bg-slate-100 text-slate-700 px-6 py-2 rounded-xl font-medium">
+                  閉じる
+                </button>
               </div>
-            )}
+            ) : (
+              <>
+                <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center mb-4">
+                  <Mail size={22} className="text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-1">予約を確定する</h3>
+                <p className="text-slate-500 mb-4 text-sm">連絡先を入力してください</p>
 
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="お名前"
-                value={bookingData.name}
-                onChange={e => setBookingData({...bookingData, name: e.target.value})}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
-              />
-              <input
-                type="tel"
-                placeholder="電話番号"
-                value={bookingData.tel}
-                onChange={e => setBookingData({...bookingData, tel: e.target.value})}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
-              />
-              <button className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3.5 rounded-xl font-bold hover:shadow-lg transition-all">
-                この内容で予約する
-              </button>
-            </div>
+                {summary && (
+                  <div className="bg-slate-50 rounded-lg p-3 mb-4 text-xs text-slate-600">
+                    <p className="font-medium text-slate-700 mb-1">相談内容</p>
+                    <p className="whitespace-pre-wrap">{summary}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleBookingSubmit} className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="お名前 *"
+                    required
+                    value={bookingData.name}
+                    onChange={e => setBookingData({...bookingData, name: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                  />
+                  <input
+                    type="email"
+                    placeholder="メールアドレス *"
+                    required
+                    value={bookingData.email}
+                    onChange={e => setBookingData({...bookingData, email: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="電話番号"
+                    value={bookingData.tel}
+                    onChange={e => setBookingData({...bookingData, tel: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={formStatus === 'submitting'}
+                    className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3.5 rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50"
+                  >
+                    {formStatus === 'submitting' ? '送信中...' : 'この内容で予約する'}
+                  </button>
+                  {formStatus === 'error' && (
+                    <p className="text-red-500 text-xs text-center">送信に失敗しました。もう一度お試しください。</p>
+                  )}
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Contact Modal */}
+      {showContact && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+            <button onClick={() => { setShowContact(false); setFormStatus('idle'); }} className="absolute top-4 right-4 text-slate-300 hover:text-slate-600">
+              <X size={24} />
+            </button>
+
+            {formStatus === 'success' ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 size={32} className="text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">送信完了</h3>
+                <p className="text-slate-500 text-sm mb-6">お問い合わせを受け付けました。<br />担当者より折り返しご連絡いたします。</p>
+                <button onClick={() => { setShowContact(false); setFormStatus('idle'); }} className="bg-slate-100 text-slate-700 px-6 py-2 rounded-xl font-medium">
+                  閉じる
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center mb-4">
+                  <Mail size={22} className="text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-1">お問い合わせ</h3>
+                <p className="text-slate-500 mb-4 text-sm">ご相談内容をお聞かせください</p>
+
+                <form onSubmit={handleContactSubmit} className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="お名前 *"
+                    required
+                    value={contactData.name}
+                    onChange={e => setContactData({...contactData, name: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                  />
+                  <input
+                    type="email"
+                    placeholder="メールアドレス *"
+                    required
+                    value={contactData.email}
+                    onChange={e => setContactData({...contactData, email: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="電話番号"
+                    value={contactData.tel}
+                    onChange={e => setContactData({...contactData, tel: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                  />
+                  <textarea
+                    placeholder="ご相談内容 *"
+                    required
+                    rows={4}
+                    value={contactData.message}
+                    onChange={e => setContactData({...contactData, message: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 resize-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={formStatus === 'submitting'}
+                    className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3.5 rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50"
+                  >
+                    {formStatus === 'submitting' ? '送信中...' : '送信する'}
+                  </button>
+                  {formStatus === 'error' && (
+                    <p className="text-red-500 text-xs text-center">送信に失敗しました。もう一度お試しください。</p>
+                  )}
+                </form>
+              </>
+            )}
           </div>
         </div>
       )}
