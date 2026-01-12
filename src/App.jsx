@@ -454,36 +454,6 @@ ${categoryLabel}
         </div>
       </section>
 
-      {/* 特徴バッジ */}
-      <section className="py-6 bg-slate-100 overflow-hidden">
-        <div className="flex gap-3 px-4 overflow-x-auto scrollbar-hide">
-          <span className="shrink-0 bg-white border border-slate-200 px-4 py-2 rounded-full text-sm font-medium text-slate-700 flex items-center gap-1.5">
-            <CheckCircle2 size={16} className="text-red-500" />
-            初回30分無料
-          </span>
-          <span className="shrink-0 bg-white border border-slate-200 px-4 py-2 rounded-full text-sm font-medium text-slate-700 flex items-center gap-1.5">
-            <CheckCircle2 size={16} className="text-red-500" />
-            土日・夜間対応
-          </span>
-          <span className="shrink-0 bg-white border border-slate-200 px-4 py-2 rounded-full text-sm font-medium text-slate-700 flex items-center gap-1.5">
-            <CheckCircle2 size={16} className="text-red-500" />
-            大阪駅徒歩3分
-          </span>
-          <span className="shrink-0 bg-white border border-slate-200 px-4 py-2 rounded-full text-sm font-medium text-slate-700 flex items-center gap-1.5">
-            <CheckCircle2 size={16} className="text-red-500" />
-            分割払いOK
-          </span>
-          <span className="shrink-0 bg-white border border-slate-200 px-4 py-2 rounded-full text-sm font-medium text-slate-700 flex items-center gap-1.5">
-            <CheckCircle2 size={16} className="text-red-500" />
-            オンライン相談可
-          </span>
-          <span className="shrink-0 bg-white border border-slate-200 px-4 py-2 rounded-full text-sm font-medium text-slate-700 flex items-center gap-1.5">
-            <CheckCircle2 size={16} className="text-red-500" />
-            AIで事前相談可
-          </span>
-        </div>
-      </section>
-
       {/* 取扱分野 */}
       <section className="px-4 py-12 bg-white">
         <div className="max-w-lg mx-auto">
